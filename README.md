@@ -1,3 +1,5 @@
+![Capa](./Capa.png)
+
 # Como Refatorar 80+ Arquivos de Forma Segura com VS Code e GitHub Copilot 🚀
 
 Você já enfrentou aquela situação onde precisa migrar um cliente de API e isso impacta dezenas de arquivos? 😰 Compartilho aqui uma estratégia que transformou uma tarefa que poderia levar semanas em um processo **organizado, repetível e auditável**.
@@ -60,7 +62,7 @@ O segredo foi criar um **arquivo de prompt estruturado** como "fonte da verdade"
 
 ### 📊 **Métricas do Processo:**
 
-- 🕐 **Tempo**: 3 horas vs. estimativa inicial de 1 semanas
+- 🕐 **Tempo**: 3 horas vs. estimativa inicial de 1 semana
 - 🐛 **Bugs pós-deploy**: Zero bugs relacionados à migração
 - 📝 **Code Review**: PRs menores e mais focados
 - 🔄 **Rollback**: Estratégia clara definida desde o início
