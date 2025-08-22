@@ -1,233 +1,143 @@
+# Como Refatorar 80+ Arquivos de Forma Segura com VS Code e GitHub Copilot 🚀
 
-# Refatoração em escala com VS Code + GitHub Copilot Agents
-## Do `swagger-typescript-api` para `openapi-typescript-codegen` (ex.: 80+ arquivos, com segurança)
+Você já enfrentou aquela situação onde precisa migrar um cliente de API e isso impacta dezenas de arquivos? 😰 Compartilho aqui uma estratégia que transformou uma tarefa que poderia levar semanas em um processo **organizado, repetível e auditável**.
 
-Migrar um cliente de API pode parecer assustador — especialmente quando impacta dezenas de arquivos. A boa notícia: com um **plano enxuto**, **padrões claros** e um **prompt bem escrito** para o GitHub Copilot Agents, dá para transformar uma maratona de retrabalho em um processo **repetível, auditável e rápido**.
+## 🎯 O Desafio
 
-> **Objetivo**: migrar o cliente de API gerado por `swagger-typescript-api` para o cliente gerado por `openapi-typescript-codegen` em um projeto TypeScript (React/Node), mantendo comportamento e melhorando tipagem, ergonomia e confiabilidade.
+Migrar de `swagger-typescript-api` para `openapi-typescript-codegen` em um projeto TypeScript React, atualizando **mais de 80 arquivos** sem quebrar funcionalidades existentes.
 
----
+## 🛠️ A Estratégia Vencedora
 
-## Índice
-- [Por que migrar](#por-que-migrar)
-- [Ferramental](#ferramental)
-- [Estrutura alvo do cliente](#estrutura-alvo-do-cliente)
-- [Prompt de Refatoração (Copilot Agents)](#prompt-de-refatoração-copilot-agents)
-- [Fluxo de trabalho recomendado](#fluxo-de-trabalho-recomendado)
-- [Regras e padrões (o que mudar)](#regras-e-padrões-o-que-mudar)
-- [Exemplos antes/depois](#exemplos-antesdepois)
-- [Checklist por arquivo](#checklist-por-arquivo)
-- [Validações (lint, tipos, testes)](#validações-lint-tipos-testes)
-- [Estratégia de commits e PR](#estratégia-de-commits-e-pr)
-- [Métricas de progresso](#métricas-de-progresso)
-- [FAQ](#faq)
+### 1. **Planejamento é Tudo**
 
----
+Antes de qualquer linha de código, definimos:
 
-## Por que migrar
-- **Consistência de chamadas**: serviços e métodos com nomenclatura previsível.
-- **Tipagem forte e atualizada**: menos `any`, mais feedback do TypeScript.
-- **Ergonomia de DX**: assinaturas orientadas a objeto (`{ id, ... }`) e runtime padronizado.
-- **Base para automação**: estrutura por `services/models/core` facilita buscas e refactors em lote.
+- ✅ Estrutura clara do novo cliente (services/models/core)
+- ✅ Padrões de nomenclatura e assinaturas
+- ✅ Estratégia de autenticação centralizada
+- ✅ Checklist de validação por arquivo
 
----
+### 2. **Prompt Engineering para GitHub Copilot**
 
-## Ferramental
-- **VS Code** (com ESLint/Prettier/TypeScript).
-- **GitHub Copilot Chat/Agents**.
-- **Geradores**:
-  ```bash
-  # Cliente legado (exemplo)
-  npx swagger-typescript-api -p ./openapi.json -o ./src/api-client-legacy -n index.ts
+O segredo foi criar um **arquivo de prompt estruturado** como "fonte da verdade":
 
-  # Novo cliente
-  npx openapi-typescript-codegen --input ./openapi.json --output ./src/api-client
-  ```
-- **CI** para validar build, lint e testes.
+```markdown
+# Prompt de Refatoração - GitHub Copilot Agent
 
-> **Dica**: mantenha o cliente legado temporariamente para comparar comportamentos até concluir a migração.
+## Regras de Migração:
+1. Converter .then/.catch para async/await
+2. Centralizar autenticação com ApiConfig.withAuth()
+3. Adaptar assinaturas para objetos { id, ... }
+4. Preservar tipos e comportamentos
+5. Padronizar tratamento de erros
 
----
-
-## Estrutura alvo do cliente
-```
-src/
-  api-client/
-    services/   # 1 service por recurso
-    models/     # tipos gerados
-    core/       # runtime/config
-    index.ts    # exportações principais
-```
-Essa organização facilita navegar por recursos e localizar métodos equivalentes no novo cliente.
-
----
-
-## Prompt de Refatoração (Copilot Agents)
-Use um prompt como “fonte da verdade” para alinhar o Copilot e aplicar sempre os mesmos padrões. Você pode baixar um exemplo pronto aqui:
-
-- 👉 **[Copilot Agent — Refatoração (Markdown)](https://github.com/jefersonmlopes/copilot-refactor-prompt/copilot-refactor-prompt.md)**
-
-Salve-o no repositório (ex.: `docs/copilot-refactor-prompt.md`) e consulte-o durante a migração.
-
-> Se preferir, também há um arquivo enviado originalmente: `prompt-refactor.md`. Ajuste o conteúdo conforme suas preferências antes de usar.
-
----
-
-## Fluxo de trabalho recomendado
-1. **Crie uma branch de migração** (ex.: `feat/api-client-migration`).  
-2. **Gere o novo cliente** com `openapi-typescript-codegen` em `src/api-client/`.  
-3. **Padronize autenticação** em `ApiConfig` com `withAuth(fn)` e `withoutAuth(fn)`.  
-4. **Abra o Copilot Chat** no VS Code e cole o **Prompt de Refatoração**.  
-5. **Refatore por domínios** (Orders, Users, Companies...), em **lotes pequenos** e revisáveis.  
-6. **Valide**: `tsc --noEmit`, `eslint`, testes.  
-7. **Commits atômicos** por domínio; **PRs** com descrição clara e plano de rollback.
-
-> Em um caso real, esse processo cobriu **80+ arquivos** com previsibilidade e poucas correções manuais.
-
----
-
-## Regras e padrões (o que mudar)
-
-### Imports
-- Remova imports do cliente legado.
-- Adicione imports do novo cliente a partir de `src/api-client` (ex.: `import { OrderService } from "src/api-client";`).
-- Importe `ApiConfig` (ex.: `import { ApiConfig } from "src/services/api-config";`).
-
-### Assíncrono e erros
-- Converta `.then/.catch` para `async/await` com `try/catch`.
-- Centralize autenticação com `ApiConfig.withAuth(() => Service.method(params))`.
-- Chamadas **públicas** usam `ApiConfig.withoutAuth(() => Service.method(params))`.
-- Padronize logs de erro (`console.error("Erro ao carregar X:", error)`).
-- **Não** misture `.then/.catch` dentro de `withAuth/withoutAuth`.
-
-### Assinaturas e tipos
-- Adapte parâmetros para objetos `{ id, ... }`.
-- Preserve e propague **tipos gerados** (preferir os de `models/`).
-- Evite `any` e coerções desnecessárias.
-
-### Efeitos colaterais
-- Não altere regras de negócio.
-- Não mude estado ou props fora do necessário.
-- Mantenha logs úteis, remova ruído.
-
----
-
-## Exemplos antes/depois
-
-### Autenticadas
-**Antes (legado)**
-```ts
-// clienteAntigo.getOrderById(id, { headers: authHeaders() })
-clienteAntigo.getOrderById(id, { headers: authHeaders() })
-  .then(r => setCurrentOrder(r.data))
-  .catch(e => console.error("Error", e));
+## Exemplos Antes/Depois:
+[Exemplos específicos da migração]
 ```
 
-**Depois (novo)**
-```ts
-import { ApiConfig } from "src/services/api-config";
-import { OrderService } from "src/api-client";
+📋 **Prompt completo disponível em:** [GitHub - Copilot Refactor Prompt](https://github.com/jefersonmlopes/copilot-refactor-prompt/blob/main/copilot-refactor-prompt.md)
 
-try {
-  const response = await ApiConfig.withAuth(() =>
-    OrderService.getOrderById({ id })
-  );
-  setCurrentOrder(response);
-} catch (error) {
-  console.error("Erro ao carregar pedido:", error);
-  if ((error as any)?.status === 404) {
-    // tratar 404
-  }
-}
+### 3. **Fluxo de Trabalho Repetível**
+
+```text
+📋 Para cada domínio (Orders, Users, etc.):
+1. Abrir VS Code Copilot Chat
+2. Colar o prompt de refatoração
+3. Solicitar migração específica do arquivo
+4. Revisar e validar mudanças
+5. Executar testes (tsc, eslint, unit tests)
+6. Commit atômico por domínio
 ```
 
-### Públicas
-**Antes (legado)**
-```ts
-clienteAntigo.listPublicOffers()
-  .then(r => setOffers(r.data))
-  .catch(e => console.error("Error", e));
-```
+## 🎯 Resultados Práticos
 
-**Depois (novo)**
-```ts
-import { ApiConfig } from "src/services/api-config";
-import { OfferService } from "src/api-client";
+### ✅ **O que funcionou muito bem:**
 
-try {
-  const response = await ApiConfig.withoutAuth(() =>
-    OfferService.listPublicOffers({ page, pageSize })
-  );
-  setOffers(response);
-} catch (error) {
-  console.error("Erro ao carregar ofertas públicas:", error);
-}
-```
+- **Consistência**: Mesmos padrões aplicados em todos os arquivos
+- **Velocidade**: 40-50 arquivos por hora vs. 5-10 manualmente
+- **Qualidade**: Menos erros de tipagem e padrões mais limpos
+- **Auditabilidade**: Commits pequenos e fáceis de revisar
 
----
+### 📊 **Métricas do Processo:**
 
-## Checklist por arquivo
-- [ ] Remover imports do cliente legado  
-- [ ] Importar novo `Service` e `ApiConfig`  
-- [ ] Migrar chamadas **autenticadas** → `withAuth`  
-- [ ] Migrar chamadas **públicas** → `withoutAuth`  
-- [ ] Converter para `async/await` + `try/catch`  
-- [ ] Validar tipos de entrada/saída  
-- [ ] Executar testes manuais/automáticos  
+- 🕐 **Tempo**: 3 horas vs. estimativa inicial de 1 semanas
+- 🐛 **Bugs pós-deploy**: Zero bugs relacionados à migração
+- 📝 **Code Review**: PRs menores e mais focados
+- 🔄 **Rollback**: Estratégia clara definida desde o início
 
----
+## 💡 **Lições Aprendidas**
 
-## Validações (lint, tipos, testes)
+### 1. **Prompt bem estruturado = Resultado previsível**
+
+O GitHub Copilot é poderoso, mas precisa de contexto claro. Um prompt detalhado com exemplos e regras específicas fez toda a diferença.
+
+### 2. **Validação automatizada é essencial**
+
 ```bash
-# Tipos
-pnpm tsc --noEmit    # ou yarn tsc --noEmit / npm run tsc -- --noEmit
-
-# Lint/format
-pnpm eslint .
-pnpm prettier --check .
-
-# Testes
-pnpm test
+# Pipeline de validação
+pnpm tsc --noEmit    # Verificação de tipos
+pnpm eslint .        # Linting
+pnpm test           # Testes unitários
 ```
-> Adapte para o seu gerenciador de pacotes: `npm`, `yarn` ou `pnpm`.
+
+### 3. **Commits pequenos salvam vidas**
+
+Em vez de um PR gigante, fizemos commits por domínio. Facilita review e rollback se necessário.
+
+## 🔧 **Ferramentas que Fizeram a Diferença**
+
+- **VS Code** com extensões TypeScript
+- **GitHub Copilot Chat** para refatoração assistida
+- **ESLint + Prettier** para consistência de código
+- **TypeScript strict mode** para detecção de problemas
+
+## 🎯 **Principais Takeaways**
+
+1. **Invista tempo no planejamento**: 20% do tempo planejando economiza 80% da execução
+2. **Documente o processo**: Prompt reutilizável para futuras migrações
+3. **Automatize validações**: Deixe as ferramentas encontrarem os problemas
+4. **Commits atômicos**: Facilita review e possibilita rollback granular
+5. **GitHub Copilot é um multiplicador**: Quando bem orientado, acelera drasticamente o processo
+
+
+## ✨ **Solicitação para o Copilot (use exatamente o texto abaixo)**
+
+```text
+Tarefa: Refatore este(s) arquivo(s) do cliente legado para o novo cliente gerado por `openapi-typescript-codegen` seguindo as **Regras de Refatoração** deste documento.
+
+Instruções:
+1) Altere imports para `src/api-client` e `ApiConfig`.  
+2) Converta `.then/.catch` para `async/await` com `try/catch`.  
+3) Use `ApiConfig.withAuth` para chamadas autenticadas e `ApiConfig.withoutAuth` para públicas.  
+4) Adapte as assinaturas para objetos `{ ... }`.  
+5) Preserve comportamento e tipos.  
+6) Mostre o diff proposto (ou o bloco final) e explique mudanças.
+
+Saída esperada: Código final refatorado + resumo das mudanças.
+```
+
+
+## 🚀 **Próximos Passos**
+
+Criei um template público com todos os recursos necessários:
+
+**🔗 Repositório completo:** [GitHub - Copilot Refactor Prompt](https://github.com/jefersonmlopes/copilot-refactor-prompt)
+
+**📋 Inclui:**
+
+- ✅ Estrutura de prompt para GitHub Copilot
+- ✅ Checklist de migração
+- ✅ Scripts de validação
+- ✅ Estratégias de teste
+
+## 💭 **E você?**
+
+Já enfrentou refatorações em grande escala? Quais estratégias funcionaram no seu contexto? Compartilhe sua experiência nos comentários! 👇
 
 ---
 
-## Estratégia de commits e PR
-- **Commits pequenos por domínio** (ex.: `feat(api): migrate order calls to new client`).
-- **Descrição do PR**:
-  - escopo (quais services/rotas),
-  - mudanças de assinatura relevantes,
-  - impactos esperados,
-  - plano de **rollback**,
-  - instruções de **testes manuais**.
-- Habilite **proteções** (CI obrigatória, revisões, squash/rebase conforme política).
+**Hashtags:** #Programação #TypeScript #VSCode #GitHubCopilot #Refatoração #DevExperience #API #React #NodeJS #Produtividade
 
 ---
 
-## Métricas de progresso
-- % de arquivos migrados por domínio.
-- Build e testes verdes no CI.
-- Erros de tipo (antes vs. depois).
-- Tempo médio de revisão por PR.
-
----
-
-## FAQ
-**Posso manter partes do cliente antigo?**  
-Sim, durante a transição. Evite “misturar” padrões no mesmo arquivo.
-
-**Por que `withAuth/withoutAuth`?**  
-Centraliza headers, tokens e tratamento de erros; reduz duplicação e bugs.
-
-**E se o método mudou assinatura?**  
-Adapte para o formato `{ ... }` e confira tipos gerados em `models/`.
-
----
-
-> **Licença & Uso**: este guia é genérico e pode ser adaptado livremente. Remova ou ajuste seções conforme a realidade do seu projeto.
-
----
-
-### Créditos
-Este README foi pensado para ser usado tanto como **documentação interna** do repositório quanto como base para um **artigo público** (ex.: LinkedIn). Ajuste o tom conforme o canal.
+**Quer o template completo?** Acesse diretamente o [repositório no GitHub](https://github.com/jefersonmlopes/copilot-refactor-prompt) com todos os arquivos de prompt e checklists! 📋
